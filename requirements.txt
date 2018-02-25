@@ -1,0 +1,9 @@
+# custom library
+https://github.com/link89/gherkin-python/archive/hb_parser.zip
+
+# public library
+gitdb2==2.0.3
+GitPython==2.1.8
+smmap2==2.0.3
+base32-crockford==0.3.0
+pycrypto==2.6.1
