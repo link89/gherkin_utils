@@ -6,6 +6,7 @@ import time
 import traceback
 import codecs
 from cStringIO import StringIO
+from subprocess import list2cmdline
 
 import base32_crockford
 from git import Repo
@@ -87,13 +88,14 @@ class BuildIndexTask(Task):
             self._repo.git.rebase(['master'])
         paths = self.get_feature_files()
         for path in paths:
+            path = os.path.join(self._repo.working_dir, path)
             self.process_file(path)
 
     def do_run(self):
         self.process_branches()
 
     def get_feature_files(self):
-        stdout = self._repo.git.ls_files(['--', '*.feature'])
+        stdout = self._repo.git.ls_files(['--full-name', '--', '*.feature'])
         if stdout:
             return stdout.split('\n')
         return []
@@ -104,6 +106,17 @@ class BuildIndexTask(Task):
         except Exception as e:
             print_error(e)
 
+    def new_fid(self):
+        if len(self._fid_idx) > 0:
+            return max(self._fid_idx) + 1
+        return 1
+
+    def new_sid(self, fuid):
+        sub_sid_idx = [_sid for _fuid, _sid in self._sid_idx if _fuid == fuid]
+        if len(sub_sid_idx) > 0:
+            return max(sub_sid_idx) + 1
+        return 1
+
     def do_process_file(self, path):
         gherkin_ast = GherkinUtils.parse_gherkin(path)
         feature = gherkin_ast['feature']
@@ -111,12 +124,12 @@ class BuildIndexTask(Task):
         if fuid and fid:
             fuid_set = self._fid_idx[fid]
             if len(fuid_set) > 1 and min(fuid_set) != fuid:  # handle duplication
-                fid = self._resolved_fuids.get(fuid, max(self._fid_idx) + 1)
+                fid = self._resolved_fuids.get(fuid, self.new_fid())
                 self._fid_idx.setdefault(fid, set()).add(fuid)
                 self._resolved_fuids[fuid] = fid  # set this so that we won't resolve same fuid again
         else:  # create new meta
             fuid = new_uuid_80b()
-            fid = max(self._fid_idx) + 1
+            fid = self.new_fid()
             self._fid_idx.setdefault(fid, set()).add(fuid)
         GherkinUtils.set_feature_meta(feature, fuid, fid)
 
@@ -128,13 +141,12 @@ class BuildIndexTask(Task):
             if suid and sid:
                 suid_set = self._sid_idx[(fuid, sid)]
                 if len(suid_set) > 1 and min(suid_set) != (fuid, suid):
-                    sid = self._resolved_suids.get((fuid, suid),
-                                                   max(_sid for _fuid, _sid in self._sid_idx if _fuid == fuid) + 1)
+                    sid = self._resolved_suids.get((fuid, suid),self.new_sid(fuid))
                     self._sid_idx.setdefault((fuid, sid), set()).add((fuid, suid))
                     self._resolved_suids[(fuid, suid)] = sid
             else:  # create new meta
                 suid = new_uuid_80b()
-                sid = max(_sid for _fuid, _sid in self._sid_idx if _fuid == fuid) + 1
+                sid = self.new_sid(fuid)
                 self._sid_idx.setdefault((fuid, sid), set()).add((fuid, suid))
             GherkinUtils.set_scenario_meta(child, fid, suid, sid)
 
@@ -186,17 +198,17 @@ class GherkinUtils(object):
 
     @classmethod
     def set_feature_meta(cls, feature_ast, fuid, fid):
-        fuid_tag = cls.new_tag(cls.new_fuid_tag(fuid))
-        fid_tag = cls.new_tag(cls.new_fid_tag(fid))
-        tags = [fuid_tag, fid_tag] + [tag for tag in feature_ast['tags']
+        fuid_tag = cls.new_fuid_tag(fuid)
+        fid_tag = cls.new_fid_tag(fid)
+        tags = [fid_tag, fuid_tag] + [tag for tag in feature_ast['tags']
                                       if not (cls.is_fid_tag(tag) or cls.is_fuid_tag(tag))]
         feature_ast['tags'] = tags
 
     @classmethod
     def set_scenario_meta(cls, scenario_ast, fid, suid, sid):
-        suid_tag = cls.new_tag(cls.new_suid_tag(suid))
-        sid_tag = cls.new_tag(cls.new_sid_tag(fid, sid))
-        tags = [suid_tag, sid_tag] + [tag for tag in scenario_ast['tags']
+        suid_tag = cls.new_suid_tag(suid)
+        sid_tag = cls.new_sid_tag(fid, sid)
+        tags = [sid_tag, suid_tag] + [tag for tag in scenario_ast['tags']
                                       if not (cls.is_sid_tag(tag) or cls.is_suid_tag(tag))]
 
         scenario_ast['tags'] = tags
@@ -254,7 +266,7 @@ class GherkinUtils(object):
     def write_gherkin_with_meta(cls, gherkin_ast, path):
         with codecs.open(path, 'w', encoding='utf8') as fp:
             meta_lines = cls.get_meta_lines(gherkin_ast)
-            fp.writelines(meta_lines)
+            fp.writelines('\n'.join(meta_lines))
             fp.writelines('\n')
             write_gherkin(gherkin_ast, fp)
 
@@ -269,8 +281,8 @@ class MetaUtils(object):
         # type: (Repo) -> ...
         remote = repo.remote()
         refs = [ref.name for ref in remote.refs]
-        cmd = [cls.META_PATTERN] + refs + ['--', '*.feature']
-        stdout = repo.git.grep(cmd)
+        cmd = list2cmdline([cls.META_PATTERN] + refs + ['--', '*.feature'])
+        stdout = repo.git.grep(cmd, with_exceptions=False)
 
         fid_idx, sid_idx = {}, {}
         if not stdout:
