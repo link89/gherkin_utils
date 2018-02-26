@@ -263,7 +263,7 @@ class GherkinUtils(object):
 
     @classmethod
     def write_gherkin_with_meta(cls, gherkin_ast, path):
-        cautions = ''' # CAUTIONS!
+        cautions = '''# CAUTIONS!
 # COMMENTS START WITH "# META " AND TAGS START WITH @FID, @FUID, @SID, @SUID
 # ARE CREATED AND USED BY HEARTBEATS SYSTEM
 # PLEASE DO NOT ADD OR MODIFY THOSE COMMENTS AND TAGS BY HAND
