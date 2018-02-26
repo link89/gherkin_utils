@@ -54,7 +54,8 @@ class BuildIndexTask(Task):
         self._url = url
         self._branches = branches
         self._processed_branches = set()
-        self._resolved_conflict = {}
+        self._resolved_fuids = {}
+        self._resolved_suids = {}
 
     def prepare(self):
         if os.path.isdir(self._path):
@@ -81,7 +82,8 @@ class BuildIndexTask(Task):
 
     def do_process_branch(self, branch_name):
         self._repo.git.checkout([branch_name])
-        self._repo.git.rebase(['master'])
+        if 'master' != branch_name:
+            self._repo.git.rebase(['master'])
         paths = self.get_feature_files()
         for path in paths:
             self.process_file(path)
@@ -102,21 +104,20 @@ class BuildIndexTask(Task):
             print_error(e)
 
     def do_process_file(self, path):
-        is_dirty = False
-        ast = parse_gherkin(path)
-
-        # handle feature
+        ast = GherkinUtils.parse_gherkin(path)
         feature = ast['feature']
         fuid, fid = GherkinUtils.get_feature_meta(feature)
-        new_fid = fid
         if fuid and fid:
             fuid_set = self._fid_idx[fid]
-            if len(fuid_set) > 1 and min(fuid_set) != fuid:
-                is_dirty = True
-                new_fid = max(self._fid_idx)
-
-        else:
-            is_dirty = True  # TODO: create new FUID and FID tag
+            if len(fuid_set) > 1 and min(fuid_set) != fuid:  # handle duplication
+                fid = self._resolved_fuids.get(fuid, max(self._fid_idx) + 1)
+                self._fid_idx.setdefault(fid, set()).add(fuid)
+                self._resolved_fuids[fuid] = fid  # set this so that we won't resolve same fuid again
+        else:  # create new meta
+            fuid = new_uuid_80b()
+            fid = max(self._fid_idx) + 1
+            self._fid_idx.setdefault(fid, set()).add(fuid)
+        GherkinUtils.set_feature_meta(feature, fuid, fid)
 
         # handle scenarios
         for child in feature['children']:
@@ -124,14 +125,23 @@ class BuildIndexTask(Task):
                 continue
             suid, sid = GherkinUtils.get_scenario_meta(child)
             if suid and sid:
-                if len(self._sid_idx[(fuid, sid)]) > 1:
-                    is_dirty = True  # TODO handle duplication
-            else:
-                is_dirty = True  # TODO: create new SUID and SID tag
+                suid_set = self._sid_idx[(fuid, sid)]
+                if len(suid_set) > 1 and min(suid_set) != (fuid, suid):
+                    sid = self._resolved_suids.get((fuid, suid),
+                                                   max(_sid for _fuid, _sid in self._sid_idx if _fuid == fuid) + 1)
+                    self._sid_idx.setdefault((fuid, sid), set()).add((fuid, suid))
+                    self._resolved_suids[(fuid, suid)] = sid
+            else:  # create new meta
+                suid = new_uuid_80b()
+                sid = max(_sid for _fuid, _sid in self._sid_idx if _fuid == fuid) + 1
+                self._sid_idx.setdefault((fuid, sid), set()).add((fuid, suid))
+            GherkinUtils.set_scenario_meta(child, fid, suid, sid)
 
-        if is_dirty:
-            write_gherkin(ast, path)
+        GherkinUtils.write_gherkin_with_meta(ast, path)
+
+        if self._repo.git.diff(['--', path]):
             self._repo.git.add([path])
+            self._repo.git.commit(['-m', 'meta: update file: {}'.format(path)])
 
 
 class GherkinUtils(object):
@@ -178,7 +188,7 @@ class GherkinUtils(object):
         fuid_tag = cls.new_tag(cls.new_fuid_tag(fuid))
         fid_tag = cls.new_tag(cls.new_fid_tag(fid))
         tags = [fuid_tag, fid_tag] + [tag for tag in feature_ast['tags']
-                                      if not(cls.is_fid_tag(tag) or cls.is_fuid_tag(tag))]
+                                      if not (cls.is_fid_tag(tag) or cls.is_fuid_tag(tag))]
         feature_ast['tags'] = tags
 
     @classmethod
@@ -186,7 +196,7 @@ class GherkinUtils(object):
         suid_tag = cls.new_tag(cls.new_suid_tag(suid))
         sid_tag = cls.new_tag(cls.new_sid_tag(fid, sid))
         tags = [suid_tag, sid_tag] + [tag for tag in scenario_ast['tags']
-                                      if not(cls.is_sid_tag(tag) or cls.is_suid_tag(tag))]
+                                      if not (cls.is_sid_tag(tag) or cls.is_suid_tag(tag))]
 
         scenario_ast['tags'] = tags
 
@@ -221,6 +231,14 @@ class GherkinUtils(object):
                 _, _fid, sid = tag['name'].split('.', 2)
                 sid = int(sid)
         return suid, sid
+
+    @staticmethod
+    def parse_gherkin(path):
+        return parse_gherkin(path)
+
+    @staticmethod
+    def write_gherkin_with_meta(ast, path):
+        return write_gherkin(ast, path)
 
 
 class MetaUtils(object):
