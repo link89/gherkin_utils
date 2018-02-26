@@ -304,8 +304,8 @@ class GherkinUtils(object):
 
 class MetaUtils(object):
     META_PATTERN = '^# META '
-    MEAT_F_PREFIX = '# META F '
-    MEAT_S_PREFIX = '# META S '
+    META_F_PREFIX = '# META F '
+    META_S_PREFIX = '# META S '
 
     @classmethod
     def build_meta_index_from_git(cls, repo):
@@ -322,10 +322,10 @@ class MetaUtils(object):
         io = StringIO(stdout)
         for line in io:
             _ref, _file_name, meta = line.split(':', 2)  # type: str
-            if meta.startswith(cls.MEAT_F_PREFIX):
+            if meta.startswith(cls.META_F_PREFIX):
                 fuid, fid = cls.split_feature_meta(meta)
                 fid_idx.setdefault(fid, set()).add(fuid)
-            elif meta.startswith(cls.MEAT_S_PREFIX):
+            elif meta.startswith(cls.META_S_PREFIX):
                 fuid, suid, sid = cls.split_scenario_meta(meta)
                 sid_idx.setdefault((fuid, sid), set()).add((fuid, suid))
             else:
@@ -337,14 +337,14 @@ class MetaUtils(object):
         meta = {}
         with codecs.open(path, 'r', encoding='utf8') as fp:
             for line in fp:
-                if line.startswith(cls.MEAT_F_PREFIX):
+                if line.startswith(cls.META_F_PREFIX):
                     fuid, fid = cls.split_feature_meta(meta)
                     feature = {
                         'fuid': fuid,
                         'fid': fid,
                     }
                     meta['feature'] = feature
-                elif line.startswith(cls.MEAT_S_PREFIX):
+                elif line.startswith(cls.META_S_PREFIX):
                     fuid, suid, sid = cls.split_scenario_meta(meta)
                     scenario = {
                         'fuid': fuid,
