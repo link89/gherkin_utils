@@ -154,7 +154,8 @@ class BuildIndexTask(Task):
 
         if self._repo.git.diff(['--', path]):
             self._repo.git.add([path])
-            self._repo.git.commit(['-m', 'meta: update file: {}'.format(path)])
+            rel_path = os.path.relpath(path, self._repo.working_dir)
+            self._repo.git.commit(['-m', 'meta: update file: {}'.format(rel_path)])
 
 
 class GherkinUtils(object):
