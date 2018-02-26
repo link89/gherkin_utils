@@ -264,10 +264,16 @@ class GherkinUtils(object):
 
     @classmethod
     def write_gherkin_with_meta(cls, gherkin_ast, path):
+        cautions = ''' # CAUTIONS!
+# COMMENTS START WITH "# META " AND TAGS START WITH @FID, @FUID, @SID, @SUID
+# ARE CREATED AND USED BY HEARTBEATS SYSTEM
+# PLEASE DO NOT ADD OR MODIFY THOSE COMMENTS AND TAGS BY HAND
+'''
         with codecs.open(path, 'w', encoding='utf8') as fp:
             meta_lines = cls.get_meta_lines(gherkin_ast)
+            fp.writelines(cautions)
             fp.writelines('\n'.join(meta_lines))
-            fp.writelines('\n')
+            fp.writelines('\n\n')
             write_gherkin(gherkin_ast, fp)
 
 
