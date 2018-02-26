@@ -6,7 +6,6 @@ import time
 import traceback
 import codecs
 from cStringIO import StringIO
-from subprocess import list2cmdline
 
 import base32_crockford
 from git import Repo
@@ -287,8 +286,8 @@ class MetaUtils(object):
         # type: (Repo) -> ...
         remote = repo.remote()
         refs = [ref.name for ref in remote.refs]
-        cmd = list2cmdline([cls.META_PATTERN] + refs + ['--', '*.feature'])
-        stdout = repo.git.grep(cmd, with_exceptions=False)
+        cmd = [cls.META_PATTERN] + refs + ['--', '*.feature']
+        stdout = repo.git.grep(cmd)
 
         fid_idx, sid_idx = {}, {}
         if not stdout:
