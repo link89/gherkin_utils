@@ -4,9 +4,11 @@ import sys
 import os
 import time
 import traceback
+from cStringIO import StringIO
 
 import base32_crockford
 from git import Repo
+from gherkin.tools import parse_gherkin, write_gherkin
 from Crypto.Random.random import StrongRandom
 
 
@@ -44,12 +46,15 @@ class BuildIndexTask(Task):
     # defer init members declare here
     _repo = None
     _remote = None
+    _fid_idx = None
+    _sid_idx = None
 
     def __init__(self, path, url=None, branches=()):
         self._path = path
         self._url = url
         self._branches = branches
         self._processed_branches = set()
+        self._resolved_conflict = {}
 
     def prepare(self):
         if os.path.isdir(self._path):
@@ -58,8 +63,7 @@ class BuildIndexTask(Task):
             self._repo = Repo.clone_from(self._url, self._path)
         self._repo.git.fetch()
         self._remote = self._repo.remote()
-        # TODO: fetch exists meta records here
-
+        self._fid_idx, self._sid_idx = MetaUtils.build_meta_index_from_git(self._repo)
 
     def process_branches(self):
         self.process_branch('master')
@@ -77,14 +81,199 @@ class BuildIndexTask(Task):
 
     def do_process_branch(self, branch_name):
         self._repo.git.checkout([branch_name])
+        self._repo.git.rebase(['master'])
+        paths = self.get_feature_files()
+        for path in paths:
+            self.process_file(path)
 
     def do_run(self):
         self.process_branches()
 
+    def get_feature_files(self):
+        stdout = self._repo.git.ls_files(['--', '*.feature'])
+        if stdout:
+            return stdout.split('\n')
+        return []
+
+    def process_file(self, path):
+        try:
+            self.do_process_file(path)
+        except Exception as e:
+            print_error(e)
+
+    def do_process_file(self, path):
+        is_dirty = False
+        ast = parse_gherkin(path)
+
+        # handle feature
+        feature = ast['feature']
+        fuid, fid = GherkinUtils.get_feature_meta(feature)
+        new_fid = fid
+        if fuid and fid:
+            fuid_set = self._fid_idx[fid]
+            if len(fuid_set) > 1 and min(fuid_set) != fuid:
+                is_dirty = True
+                new_fid = max(self._fid_idx)
+
+        else:
+            is_dirty = True  # TODO: create new FUID and FID tag
+
+        # handle scenarios
+        for child in feature['children']:
+            if 'Background' == child['type']:
+                continue
+            suid, sid = GherkinUtils.get_scenario_meta(child)
+            if suid and sid:
+                if len(self._sid_idx[(fuid, sid)]) > 1:
+                    is_dirty = True  # TODO handle duplication
+            else:
+                is_dirty = True  # TODO: create new SUID and SID tag
+
+        if is_dirty:
+            write_gherkin(ast, path)
+            self._repo.git.add([path])
+
+
+class GherkinUtils(object):
+    @classmethod
+    def new_fid_tag(cls, fid):
+        return cls.new_tag("@FID.{}".format(fid))
+
+    @classmethod
+    def new_sid_tag(cls, fid, sid):
+        return cls.new_tag("@SID.{}.{}".format(fid, sid))
+
+    @classmethod
+    def new_fuid_tag(cls, fuid):
+        return cls.new_tag("@FUID.{}".format(fuid))
+
+    @classmethod
+    def new_suid_tag(cls, suid):
+        return cls.new_tag("@SUID.{}".format(suid))
+
+    @staticmethod
+    def is_fid_tag(tag):
+        return tag['name'].startswith('@FID.')
+
+    @staticmethod
+    def is_sid_tag(tag):
+        return tag['name'].startswith('@SID.')
+
+    @staticmethod
+    def is_fuid_tag(tag):
+        return tag['name'].startswith('@FUID.')
+
+    @staticmethod
+    def is_suid_tag(tag):
+        return tag['name'].startswith('@SUID.')
+
+    @staticmethod
+    def new_tag(tag_name):
+        return {
+            'name': tag_name,
+        }
+
+    @classmethod
+    def set_feature_meta(cls, feature_ast, fuid, fid):
+        fuid_tag = cls.new_tag(cls.new_fuid_tag(fuid))
+        fid_tag = cls.new_tag(cls.new_fid_tag(fid))
+        tags = [fuid_tag, fid_tag] + [tag for tag in feature_ast['tags']
+                                      if not(cls.is_fid_tag(tag) or cls.is_fuid_tag(tag))]
+        feature_ast['tags'] = tags
+
+    @classmethod
+    def set_scenario_meta(cls, scenario_ast, fid, suid, sid):
+        suid_tag = cls.new_tag(cls.new_suid_tag(suid))
+        sid_tag = cls.new_tag(cls.new_sid_tag(fid, sid))
+        tags = [suid_tag, sid_tag] + [tag for tag in scenario_ast['tags']
+                                      if not(cls.is_sid_tag(tag) or cls.is_suid_tag(tag))]
+
+        scenario_ast['tags'] = tags
+
+    @classmethod
+    def get_feature_meta(cls, feature_ast):
+        tags = feature_ast['tags']
+        fuid, fid = None, None
+        for tag in tags:
+            if cls.is_fuid_tag(tag):
+                if fuid:
+                    raise ValueError('duplicated FUID tag is found: {}'.format(tags))
+                _, fuid = tag['name'].split('.', 1)
+            elif cls.is_fid_tag(tag):
+                if fid:
+                    raise ValueError('duplicated FID tag is found: {}'.format(tags))
+                _, fid = tag['name'].split('.', 1)
+                fid = int(fid)
+        return fuid, fid
+
+    @classmethod
+    def get_scenario_meta(cls, scenario_ast):
+        tags = scenario_ast['tags']
+        suid, sid = None, None
+        for tag in tags:
+            if cls.is_suid_tag(tag):
+                if suid:
+                    raise ValueError('duplicated SUID tag is found: {}'.format(tags))
+                _, suid = tag['name'].split('.', 1)
+            elif cls.is_sid_tag(tag):
+                if sid:
+                    raise ValueError('duplicated SID tag is found: {}'.format(tags))
+                _, _fid, sid = tag['name'].split('.', 2)
+                sid = int(sid)
+        return suid, sid
+
 
 class MetaUtils(object):
-    def __init__(self, repo):
-        self._repo = repo  # type: Repo
+    META_PATTERN = '^# META '
+    MEAT_F_PREFIX = '# META F '
+    MEAT_S_PREFIX = '# META S '
+
+    @classmethod
+    def build_meta_index_from_git(cls, repo):
+        # type: (Repo) -> ...
+        remote = repo.remote()
+        refs = [ref.name for ref in remote.refs]
+        cmd = [cls.META_PATTERN] + refs + ['--', '*.feature']
+        stdout = repo.git.grep(cmd)
+
+        fid_idx, sid_idx = {}, {}
+        if not stdout:
+            return fid_idx, sid_idx
+
+        io = StringIO(stdout)
+        for line in io:
+            _ref, _file_name, meta = line.split(':', 2)  # type: str
+            if meta.startswith(cls.MEAT_F_PREFIX):
+                fuid, fid = cls.split_feature_meta(meta)
+                fid_idx.setdefault(fid, set()).add(fuid)
+            elif meta.startswith(cls.MEAT_S_PREFIX):
+                fuid, suid, sid = cls.split_scenario_meta(meta)
+                sid_idx.setdefault((fuid, sid), set()).add((fuid, suid))
+            else:
+                raise ValueError('invalid meta line: ' + meta)
+        return fid_idx, sid_idx
+
+    @classmethod
+    def get_meta_from_file(cls, path):
+        meta = {}
+        with open(path, 'r') as fp:
+            for line in fp:
+                if line.startswith(cls.MEAT_F_PREFIX):
+                    fuid, fid = cls.split_feature_meta(meta)
+                    feature = {
+                        'fuid': fuid,
+                        'fid': fid,
+                    }
+                    meta['feature'] = feature
+                elif line.startswith(cls.MEAT_S_PREFIX):
+                    fuid, suid, sid = cls.split_scenario_meta(meta)
+                    scenario = {
+                        'fuid': fuid,
+                        'suid': suid,
+                        'sid': sid,
+                    }
+                    meta.setdefault('scenarios', []).append(scenario)
+        return meta
 
     @staticmethod
     def new_feature_meta_pattern(fuid=None):
@@ -107,22 +296,6 @@ class MetaUtils(object):
         return pattern
 
     @staticmethod
-    def new_fid_tag(fid):
-        return "@F.{}".format(fid)
-
-    @staticmethod
-    def new_sid_tag(fid, sid):
-        return "@S.{}.{}".format(fid, sid)
-
-    @staticmethod
-    def new_fuid_tag(fuid):
-        return "@FUID.{}".format(fuid)
-
-    @staticmethod
-    def new_suid_tag(suid):
-        return "@SUID.{}".format(suid)
-
-    @staticmethod
     def new_feature_meta(fuid, fid, data=''):
         return "# META F {} {:16d} ".format(fuid, fid, data)
 
@@ -130,6 +303,23 @@ class MetaUtils(object):
     def new_scenario_meta(fuid, suid, sid, data=''):
         return "# META S {} {} {:16d} {}".format(fuid, suid, sid, data)
 
+    @staticmethod
+    def split_feature_meta(meta_line):
+        offset = 9  # len('# META F ') == 9
+        fuid = meta_line[offset:offset+16]
+        offset = 26  # len('# META F FFFFFFFFFFFFFFFF ') == 26
+        fid = int(meta_line[offset:offset+16])
+        return fuid, fid
+
+    @staticmethod
+    def split_scenario_meta(meta_line):
+        offset = 9  # len('# META S ') == 9
+        fuid = meta_line[offset:offset+16]
+        offset = 26  # len('# META S FFFFFFFFFFFFFFFF ') == 26
+        suid = meta_line[offset:offset+16]
+        offset = 43  # len('# META F FFFFFFFFFFFFFFFF SSSSSSSSSSSSSSSS ') == 43
+        sid = int(meta_line[offset:offset+16])
+        return fuid, suid, sid
 
 
 def new_uuid_80b():
