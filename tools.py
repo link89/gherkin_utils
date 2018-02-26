@@ -5,6 +5,7 @@ import os
 import time
 import traceback
 import codecs
+import json
 from cStringIO import StringIO
 
 import base32_crockford
@@ -245,16 +246,40 @@ class GherkinUtils(object):
         return suid, sid
 
     @classmethod
+    def new_feature_summary(cls, feature_ast, fuid, fid):
+        summary = {
+            'name': feature_ast['name'],
+            'description': feature_ast.get('description'),
+            'tags': [tag['name'] for tag in feature_ast['tags']],
+            'fuid': fuid,
+            'fid': fid,
+        }
+        return json.dumps(summary, separators=(',', ':'))
+
+    @classmethod
+    def new_scenario_summary(cls, scenario_ast, suid, sid):
+        summary = {
+            'name': scenario_ast['name'],
+            'description': scenario_ast.get('description'),
+            'tags': [tag['name'] for tag in scenario_ast['tags']],
+            'suid': suid,
+            'sid': sid,
+        }
+        return json.dumps(summary, separators=(',', ':'))
+
+    @classmethod
     def get_meta_lines(cls, gherkin_ast):
         lines = []
         feature = gherkin_ast['feature']
         fuid, fid = cls.get_feature_meta(feature)
-        lines.append(MetaUtils.new_feature_meta(fuid, fid))
+        data = cls.new_feature_summary(feature, fuid, fid)
+        lines.append(MetaUtils.new_feature_meta(fuid, fid, data))
         for child in feature['children']:
             if 'Background' == child['type']:
                 continue
             suid, sid = cls.get_scenario_meta(child)
-            lines.append(MetaUtils.new_scenario_meta(fuid, suid, sid))
+            data = cls.new_scenario_summary(child, suid, sid)
+            lines.append(MetaUtils.new_scenario_meta(fuid, suid, sid, data))
         return lines
 
     @staticmethod
@@ -350,7 +375,7 @@ class MetaUtils(object):
 
     @staticmethod
     def new_feature_meta(fuid, fid, data=''):
-        return "# META F {} {:16d} ".format(fuid, fid, data)
+        return "# META F {} {:16d} {}".format(fuid, fid, data)
 
     @staticmethod
     def new_scenario_meta(fuid, suid, sid, data=''):
