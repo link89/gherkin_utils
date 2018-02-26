@@ -4,6 +4,7 @@ import sys
 import os
 import time
 import traceback
+import codecs
 from cStringIO import StringIO
 
 import base32_crockford
@@ -104,8 +105,8 @@ class BuildIndexTask(Task):
             print_error(e)
 
     def do_process_file(self, path):
-        ast = GherkinUtils.parse_gherkin(path)
-        feature = ast['feature']
+        gherkin_ast = GherkinUtils.parse_gherkin(path)
+        feature = gherkin_ast['feature']
         fuid, fid = GherkinUtils.get_feature_meta(feature)
         if fuid and fid:
             fuid_set = self._fid_idx[fid]
@@ -137,7 +138,7 @@ class BuildIndexTask(Task):
                 self._sid_idx.setdefault((fuid, sid), set()).add((fuid, suid))
             GherkinUtils.set_scenario_meta(child, fid, suid, sid)
 
-        GherkinUtils.write_gherkin_with_meta(ast, path)
+        GherkinUtils.write_gherkin_with_meta(gherkin_ast, path)
 
         if self._repo.git.diff(['--', path]):
             self._repo.git.add([path])
@@ -232,13 +233,30 @@ class GherkinUtils(object):
                 sid = int(sid)
         return suid, sid
 
+    @classmethod
+    def get_meta_lines(cls, gherkin_ast):
+        lines = []
+        feature = gherkin_ast['feature']
+        fuid, fid = cls.get_feature_meta(feature)
+        lines.append(MetaUtils.new_feature_meta(fuid, fid))
+        for child in feature['children']:
+            if 'Background' == child['type']:
+                continue
+            suid, sid = cls.get_scenario_meta(child)
+            lines.append(MetaUtils.new_scenario_meta(fuid, suid, sid))
+        return lines
+
     @staticmethod
     def parse_gherkin(path):
         return parse_gherkin(path)
 
-    @staticmethod
-    def write_gherkin_with_meta(ast, path):
-        return write_gherkin(ast, path)
+    @classmethod
+    def write_gherkin_with_meta(cls, gherkin_ast, path):
+        with codecs.open(path, 'w', encoding='utf8') as fp:
+            meta_lines = cls.get_meta_lines(gherkin_ast)
+            fp.writelines(meta_lines)
+            fp.writelines('\n')
+            write_gherkin(gherkin_ast, fp)
 
 
 class MetaUtils(object):
@@ -274,7 +292,7 @@ class MetaUtils(object):
     @classmethod
     def get_meta_from_file(cls, path):
         meta = {}
-        with open(path, 'r') as fp:
+        with codecs.open(path, 'r', encoding='utf8') as fp:
             for line in fp:
                 if line.startswith(cls.MEAT_F_PREFIX):
                     fuid, fid = cls.split_feature_meta(meta)
