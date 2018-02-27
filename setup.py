@@ -1,7 +1,7 @@
 # coding: utf-8
 from distutils.core import setup
 setup(name='gherkin_utils',
-      packages=['gherkin_utils.tools'],
+      packages=['gherkin_utils'],
       version='0.0.1-snapshot',
       description='Gherkin Utils',
       author='Henry Xu',
