@@ -322,36 +322,14 @@ class MetaUtils(object):
         for line in io:
             _ref, _file_name, meta = line.split(':', 2)  # type: str
             if meta.startswith(cls.META_F_PREFIX):
-                fuid, fid = cls.split_feature_meta(meta)
+                fuid, fid, _data = cls.split_feature_meta(meta)
                 fid_idx.setdefault(fid, set()).add(fuid)
             elif meta.startswith(cls.META_S_PREFIX):
-                fuid, suid, sid = cls.split_scenario_meta(meta)
+                fuid, suid, sid, _data = cls.split_scenario_meta(meta)
                 sid_idx.setdefault((fuid, sid), set()).add((fuid, suid))
             else:
                 raise ValueError('invalid meta line: ' + meta)
         return fid_idx, sid_idx
-
-    @classmethod
-    def get_meta_from_file(cls, path):
-        meta = {}
-        with codecs.open(path, 'r', encoding='utf8') as fp:
-            for line in fp:
-                if line.startswith(cls.META_F_PREFIX):
-                    fuid, fid = cls.split_feature_meta(meta)
-                    feature = {
-                        'fuid': fuid,
-                        'fid': fid,
-                    }
-                    meta['feature'] = feature
-                elif line.startswith(cls.META_S_PREFIX):
-                    fuid, suid, sid = cls.split_scenario_meta(meta)
-                    scenario = {
-                        'fuid': fuid,
-                        'suid': suid,
-                        'sid': sid,
-                    }
-                    meta.setdefault('scenarios', []).append(scenario)
-        return meta
 
     @staticmethod
     def new_feature_meta_pattern(fuid=None):
@@ -387,7 +365,9 @@ class MetaUtils(object):
         fuid = meta_line[offset:offset+16]
         offset = 26  # len('# META F FFFFFFFFFFFFFFFF ') == 26
         fid = int(meta_line[offset:offset+16])
-        return fuid, fid
+        offset = 43  # len('# META F FFFFFFFFFFFFFFFF                1 ') == 26
+        data = meta_line[offset:]
+        return fuid, fid, data
 
     @staticmethod
     def split_scenario_meta(meta_line):
@@ -397,7 +377,9 @@ class MetaUtils(object):
         suid = meta_line[offset:offset+16]
         offset = 43  # len('# META F FFFFFFFFFFFFFFFF SSSSSSSSSSSSSSSS ') == 43
         sid = int(meta_line[offset:offset+16])
-        return fuid, suid, sid
+        offset = 60  # len('# META F FFFFFFFFFFFFFFFF SSSSSSSSSSSSSSSS                1 ') == 60
+        data = meta_line[offset:]
+        return fuid, suid, sid, data
 
 
 def new_uuid_80b():

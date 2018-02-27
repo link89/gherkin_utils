@@ -16,7 +16,7 @@ class TestMetaUtils(TestCase):
     def test_meta_line(self):
         fuid = 'F' * 16
         suid = 'S' * 16
-        f_meta_line = MetaUtils.new_feature_meta(fuid, 12345)
-        s_meta_line = MetaUtils.new_scenario_meta(fuid, suid, 54321)
-        self.assertEqual(MetaUtils.split_feature_meta(f_meta_line), (fuid, 12345))
-        self.assertEqual(MetaUtils.split_scenario_meta(s_meta_line), (fuid, suid, 54321))
+        f_meta_line = MetaUtils.new_feature_meta(fuid, 12345, 'any data')
+        s_meta_line = MetaUtils.new_scenario_meta(fuid, suid, 54321, 'any data')
+        self.assertEqual(MetaUtils.split_feature_meta(f_meta_line), (fuid, 12345, 'any data'))
+        self.assertEqual(MetaUtils.split_scenario_meta(s_meta_line), (fuid, suid, 54321, 'any data'))
