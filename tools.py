@@ -310,8 +310,7 @@ class MetaUtils(object):
     @classmethod
     def build_meta_index_from_git(cls, repo):
         # type: (Repo) -> ...
-        remote = repo.remote()
-        refs = [ref.name for ref in remote.refs]
+        refs = [ref.name for ref in repo.refs]
         cmd = [cls.META_PATTERN] + refs + ['--', '*.feature']
         stdout = repo.git.grep(cmd)
 
