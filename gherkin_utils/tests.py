@@ -1,9 +1,7 @@
 from __future__ import print_function, unicode_literals, absolute_import
 
 from unittest import TestCase
-from tools import BuildIndexTask, MetaUtils
-
-from tools import new_uuid_80b, new_uuid_120b
+from .tools import MetaUtils
 
 
 class TestMetaUtils(TestCase):
