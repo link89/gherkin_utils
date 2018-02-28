@@ -291,21 +291,25 @@ class GherkinUtils(object):
                 lines.append(MetaUtils.new_scenario_meta(fuid, suid, sid, data))
         return lines
 
+    @classmethod
+    def new_meta_header(cls, gherkin_ast):
+        cautions = '''# CAUTIONS!
+# COMMENTS START WITH "# META " AND TAGS START WITH @FID, @FUID, @SID, @SUID
+# ARE CREATED AND USED BY HEARTBEATS SYSTEM
+# PLEASE DO NOT ADD OR MODIFY THOSE COMMENTS AND TAGS BY HAND
+'''
+        meta_lines = cls.get_meta_lines(gherkin_ast)
+        return cautions + '\n'.join(meta_lines)
+
     @staticmethod
     def parse_gherkin(path):
         return parse_gherkin(path)
 
     @classmethod
     def write_gherkin_with_meta(cls, gherkin_ast, path):
-        cautions = '''# CAUTIONS!
-# COMMENTS START WITH "# META " AND TAGS START WITH @FID, @FUID, @SID, @SUID
-# ARE CREATED AND USED BY HEARTBEATS SYSTEM
-# PLEASE DO NOT ADD OR MODIFY THOSE COMMENTS AND TAGS BY HAND
-'''
         with codecs.open(path, 'w', encoding='utf8') as fp:
-            meta_lines = cls.get_meta_lines(gherkin_ast)
-            fp.writelines(cautions)
-            fp.writelines('\n'.join(meta_lines))
+            meta_header = cls.new_meta_header(gherkin_ast)
+            fp.writelines(meta_header)
             fp.writelines('\n\n')
             write_gherkin(gherkin_ast, fp)
 
