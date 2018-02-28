@@ -52,13 +52,20 @@ class BuildIndexTask(Task):
     _fid_idx = None
     _sid_idx = None
 
-    def __init__(self, path, url=None, branches=(), rebase_to=None, push_to_remote=False):
+    @classmethod
+    def labeling_file_in_repo(cls, repo_path, file_path):
+        task = cls(repo_path, fetch_remote=False)
+        task.prepare()
+        task.process_file(file_path, create_commit=False)
+
+    def __init__(self, path, url=None, branches=(), fetch_remote=True, rebase_to=None, push_to_remote=False):
         self._path = path
         self._url = url
         self._branches = branches
         self._processed_branches = set()
         self._resolved_fuids = {}
         self._resolved_suids = {}
+        self._fetch_remote=fetch_remote
         self._push_to_remote = push_to_remote
         self._rebase_to = rebase_to
 
@@ -67,7 +74,8 @@ class BuildIndexTask(Task):
             self._repo = Repo(self._path)
         else:
             self._repo = Repo.clone_from(self._url, self._path)
-        self._repo.git.fetch()
+        if self._fetch_remote:
+            self._repo.git.fetch()
         self._remote = self._repo.remote()
         self._fid_idx, self._sid_idx = MetaUtils.build_meta_index_from_git(self._repo)
 
@@ -106,9 +114,9 @@ class BuildIndexTask(Task):
             return stdout.split('\n')
         return []
 
-    def process_file(self, path):
+    def process_file(self, path, create_commit=True):
         try:
-            self.do_process_file(path)
+            self.do_process_file(path, create_commit)
         except Exception as e:
             print_error(e)
 
@@ -123,7 +131,7 @@ class BuildIndexTask(Task):
             return max(sub_sid_idx) + 1
         return 1
 
-    def do_process_file(self, path):
+    def do_process_file(self, path, create_commit):
         gherkin_ast = GherkinUtils.parse_gherkin(path)
         feature = gherkin_ast['feature']
         fuid, fid = GherkinUtils.get_feature_meta(feature)
@@ -158,7 +166,7 @@ class BuildIndexTask(Task):
 
         GherkinUtils.write_gherkin_with_meta(gherkin_ast, path)
 
-        if self._repo.git.diff(['--', path]):
+        if create_commit and self._repo.git.diff(['--', path]):
             self._repo.git.add([path])
             rel_path = os.path.relpath(path, self._repo.working_dir)
             self._repo.git.commit(['-m', 'meta: update file: {}'.format(rel_path)])
