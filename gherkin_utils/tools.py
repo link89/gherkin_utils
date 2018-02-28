@@ -127,7 +127,7 @@ class BuildIndexTask(Task):
         gherkin_ast = GherkinUtils.parse_gherkin(path)
         feature = gherkin_ast['feature']
         fuid, fid = GherkinUtils.get_feature_meta(feature)
-        if fuid and fid:
+        if fuid is not None and fid is not None:
             fuid_set = self._fid_idx[fid]
             if len(fuid_set) > 1 and min(fuid_set) != fuid:  # handle duplication
                 fid = self._resolved_fuids.get(fuid, self.new_fid())
@@ -144,7 +144,7 @@ class BuildIndexTask(Task):
             if 'Background' == child['type']:
                 continue
             suid, sid = GherkinUtils.get_scenario_meta(child)
-            if suid and sid:
+            if suid is not None and sid is not None:
                 suid_set = self._sid_idx[(fuid, sid)]
                 if len(suid_set) > 1 and min(suid_set) != (fuid, suid):
                     sid = self._resolved_suids.get((fuid, suid),self.new_sid(fuid))
@@ -279,14 +279,16 @@ class GherkinUtils(object):
         lines = []
         feature = gherkin_ast['feature']
         fuid, fid = cls.get_feature_meta(feature)
-        data = cls.new_feature_summary(feature, fuid, fid)
-        lines.append(MetaUtils.new_feature_meta(fuid, fid, data))
+        if fuid is not None and fid is not None:
+            data = cls.new_feature_summary(feature, fuid, fid)
+            lines.append(MetaUtils.new_feature_meta(fuid, fid, data))
         for child in feature['children']:
             if 'Background' == child['type']:
                 continue
             suid, sid = cls.get_scenario_meta(child)
-            data = cls.new_scenario_summary(child, suid, sid)
-            lines.append(MetaUtils.new_scenario_meta(fuid, suid, sid, data))
+            if suid is not None and sid is not None:
+                data = cls.new_scenario_summary(child, suid, sid)
+                lines.append(MetaUtils.new_scenario_meta(fuid, suid, sid, data))
         return lines
 
     @staticmethod
