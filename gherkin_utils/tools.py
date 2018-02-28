@@ -9,6 +9,7 @@ import json
 from cStringIO import StringIO
 
 import base32_crockford
+import git.exc
 from git import Repo
 from gherkin.tools import parse_gherkin, write_gherkin
 from Crypto.Random.random import StrongRandom
@@ -317,7 +318,12 @@ class MetaUtils(object):
         # type: (Repo) -> ...
         refs = [ref.name for ref in repo.refs]
         cmd = [cls.META_PATTERN] + refs + ['--', '*.feature']
-        stdout = repo.git.grep(cmd)
+        stdout = ''
+        try:
+            stdout = repo.git.grep(cmd)
+        except git.exc.GitCommandError as e:
+            if e.status != 1:  # git grep will return status 1 when nothing is match
+                raise e
 
         fid_idx, sid_idx = {}, {}
         if not stdout:
