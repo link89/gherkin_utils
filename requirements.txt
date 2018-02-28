@@ -1,5 +1,5 @@
 # custom library
-https://github.com/link89/gherkin-python/archive/hb_parser.zip
+https://github.com/link89/gherkin-python/archive/hack.zip
 
 # public library
 gitdb2==2.0.3

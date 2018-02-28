@@ -16,5 +16,5 @@ setup(name='gherkin_utils',
                         'base32-crockford',
                         'pycrypto',
                         ],
-      dependency_links=['https://github.com/link89/gherkin-python/archive/hb_parser.zip'],
+      dependency_links=['https://github.com/link89/gherkin-python/archive/hack.zip'],
       )
