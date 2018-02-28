@@ -51,13 +51,15 @@ class BuildIndexTask(Task):
     _fid_idx = None
     _sid_idx = None
 
-    def __init__(self, path, url=None, branches=()):
+    def __init__(self, path, url=None, branches=(), rebase_to=None, push_to_remote=False):
         self._path = path
         self._url = url
         self._branches = branches
         self._processed_branches = set()
         self._resolved_fuids = {}
         self._resolved_suids = {}
+        self._push_to_remote = push_to_remote
+        self._rebase_to = rebase_to
 
     def prepare(self):
         if os.path.isdir(self._path):
@@ -69,7 +71,8 @@ class BuildIndexTask(Task):
         self._fid_idx, self._sid_idx = MetaUtils.build_meta_index_from_git(self._repo)
 
     def process_branches(self):
-        self.process_branch('master')
+        if self._rebase_to is not None:
+            self.process_branch(self._rebase_to)
         for branch in self._branches:
             if branch not in self._processed_branches:
                 self.process_branch(branch)
@@ -79,17 +82,19 @@ class BuildIndexTask(Task):
             self.do_process_branch(branch_name)
         except Exception as e:
             print_error(e)
-        else:
+        finally:
             self._processed_branches.add(branch_name)
 
     def do_process_branch(self, branch_name):
         self._repo.git.checkout([branch_name])
-        if 'master' != branch_name:
-            self._repo.git.rebase(['master'])
+        if self._rebase_to is not None and self._rebase_to != branch_name:
+            self._repo.git.rebase([self._rebase_to])
         paths = self.get_feature_files()
         for path in paths:
             path = os.path.join(self._repo.working_dir, path)
             self.process_file(path)
+        if self._push_to_remote:
+            self._remote.push(branch_name)
 
     def do_run(self):
         self.process_branches()
