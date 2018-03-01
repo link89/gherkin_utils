@@ -229,6 +229,24 @@ class GherkinUtils(object):
         scenario_ast['tags'] = tags
 
     @classmethod
+    def get_gherkin_meta(cls, gherkin_ast):
+        meta_data = {}
+        feature = gherkin_ast['feature']
+        fuid, fid = cls.get_feature_meta(feature)
+        feature_meta = cls.new_feature_summary(feature, fuid, fid)
+        meta_data['feature'] = feature_meta
+
+        children = []
+        for child in feature['children']:
+            if 'Background' == child['type']:
+                continue
+            suid, sid = cls.get_scenario_meta(child)
+            data = cls.new_scenario_summary(child, suid, sid)
+            children.append(data)
+        meta_data['children'] = children
+        return meta_data
+
+    @classmethod
     def get_feature_meta(cls, feature_ast):
         tags = feature_ast['tags']
         fuid, fid = None, None
@@ -279,11 +297,12 @@ class GherkinUtils(object):
             'tags': [tag['name'] for tag in scenario_ast['tags']],
             'suid': suid,
             'sid': sid,
+            'type': scenario_ast['type'],
         }
         return json.dumps(summary, separators=(',', ':'))
 
     @classmethod
-    def get_meta_lines(cls, gherkin_ast):
+    def new_meta_lines(cls, gherkin_ast):
         lines = []
         feature = gherkin_ast['feature']
         fuid, fid = cls.get_feature_meta(feature)
@@ -306,7 +325,7 @@ class GherkinUtils(object):
 # ARE CREATED AND USED BY HEARTBEATS SYSTEM
 # PLEASE DO NOT ADD OR MODIFY THOSE COMMENTS AND TAGS BY HAND
 '''
-        meta_lines = cls.get_meta_lines(gherkin_ast)
+        meta_lines = cls.new_meta_lines(gherkin_ast)
         return cautions + '\n'.join(meta_lines)
 
     @staticmethod
