@@ -279,7 +279,7 @@ class GherkinUtils(object):
         return suid, sid
 
     @classmethod
-    def new_feature_summary(cls, feature_ast, fuid, fid):
+    def new_feature_summary(cls, feature_ast, fuid, fid, to_json=False):
         summary = {
             'name': feature_ast['name'],
             'description': feature_ast.get('description'),
@@ -287,10 +287,12 @@ class GherkinUtils(object):
             'fuid': fuid,
             'fid': fid,
         }
-        return json.dumps(summary, separators=(',', ':'))
+        if to_json:
+            return json.dumps(summary, separators=(',', ':'))
+        return summary
 
     @classmethod
-    def new_scenario_summary(cls, scenario_ast, suid, sid):
+    def new_scenario_summary(cls, scenario_ast, suid, sid, to_json=False):
         summary = {
             'name': scenario_ast['name'],
             'description': scenario_ast.get('description'),
@@ -299,7 +301,9 @@ class GherkinUtils(object):
             'sid': sid,
             'type': scenario_ast['type'],
         }
-        return json.dumps(summary, separators=(',', ':'))
+        if to_json:
+            return json.dumps(summary, separators=(',', ':'))
+        return summary
 
     @classmethod
     def new_meta_lines(cls, gherkin_ast):
@@ -307,14 +311,14 @@ class GherkinUtils(object):
         feature = gherkin_ast['feature']
         fuid, fid = cls.get_feature_meta(feature)
         if fuid is not None and fid is not None:
-            data = cls.new_feature_summary(feature, fuid, fid)
+            data = cls.new_feature_summary(feature, fuid, fid, to_json=True)
             lines.append(MetaUtils.new_feature_meta(fuid, fid, data))
         for child in feature['children']:
             if 'Background' == child['type']:
                 continue
             suid, sid = cls.get_scenario_meta(child)
             if suid is not None and sid is not None:
-                data = cls.new_scenario_summary(child, suid, sid)
+                data = cls.new_scenario_summary(child, suid, sid, to_json=True)
                 lines.append(MetaUtils.new_scenario_meta(fuid, suid, sid, data))
         return lines
 
