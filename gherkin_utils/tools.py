@@ -231,6 +231,8 @@ class GherkinUtils(object):
     @classmethod
     def get_gherkin_meta(cls, gherkin_ast):
         meta_data = {}
+        if 'feature' not in gherkin_ast:
+            return meta_data
         feature = gherkin_ast['feature']
         fuid, fid = cls.get_feature_meta(feature)
         feature_meta = cls.new_feature_summary(feature, fuid, fid)
@@ -308,6 +310,8 @@ class GherkinUtils(object):
     @classmethod
     def new_meta_lines(cls, gherkin_ast):
         lines = []
+        if 'feature' not in gherkin_ast:
+            return lines
         feature = gherkin_ast['feature']
         fuid, fid = cls.get_feature_meta(feature)
         if fuid is not None and fid is not None:
