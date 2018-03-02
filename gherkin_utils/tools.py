@@ -373,7 +373,8 @@ class MetaUtils(object):
         return stdout
 
     @classmethod
-    def git_get_features_meta(cls, repo_or_path, refs=None, fuid=None, with_children=False, skip_error=False):
+    def git_get_features_meta(cls, repo_or_path, refs=None, fuid=None, with_children=False, index_children=False,
+                              skip_error=False):
         repo = maybe_repo(repo_or_path)
         pattern = cls.new_feature_meta_pattern(fuid, with_children)
         stdout = cls.git_grep_features(repo, pattern, refs)
@@ -401,7 +402,10 @@ class MetaUtils(object):
                     summary['_suid'] = _suid
                     summary['_sid'] = _sid
                     feature_summary = features_idx[(ref, file_name)]  # type: dict
-                    feature_summary.setdefault('children', []).append(summary)
+                    if index_children:
+                        feature_summary.setdefault('children', {})[_suid] = summary
+                    else:
+                        feature_summary.setdefault('children', []).append(summary)
             except Exception as e:
                 if not skip_error:
                     raise e
