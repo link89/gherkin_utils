@@ -438,6 +438,14 @@ class MetaUtils(object):
         return scenarios
 
     @classmethod
+    def git_get_file_by_fuid(cls, repo_or_path, fuid, ref=None):
+        repo = maybe_repo(repo_or_path)
+        features_meta = cls.git_get_features_meta(repo, ref, fuid)
+        if len(features_meta) != 1:
+            raise ValueError()
+        return os.path.join(repo.working_dir, features_meta[0]['_file_name'])
+
+    @classmethod
     def git_build_meta_index(cls, repo_or_path):
         # type: (Repo) -> ...
         repo = maybe_repo(repo_or_path)
@@ -542,6 +550,7 @@ def new_uuid_120b():
 
 
 def maybe_repo(repo_or_path):
+    # type: (...) -> Repo
     if isinstance(repo_or_path, Repo):
         return repo_or_path
     return Repo(repo_or_path)
