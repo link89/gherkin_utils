@@ -355,8 +355,9 @@ class MetaUtils(object):
     META_S_PREFIX = '# META S '
 
     @staticmethod
-    def git_grep_features(repo, pattern, refs=None):
+    def git_grep_features(repo_or_path, pattern, refs=None):
         # type: (Repo, basestring, ...) -> ...
+        repo = maybe_repo(repo_or_path)
         if isinstance(refs, list):
             cmd = [pattern] + refs + ['--', '*.feature']
         elif isinstance(refs, basestring):
@@ -372,7 +373,8 @@ class MetaUtils(object):
         return stdout
 
     @classmethod
-    def git_get_features_meta(cls, repo, refs=None, fuid=None, skip_error=False):
+    def git_get_features_meta(cls, repo_or_path, refs=None, fuid=None, skip_error=False):
+        repo = maybe_repo(repo_or_path)
         pattern = cls.new_feature_meta_pattern(fuid)
         stdout = cls.git_grep_features(repo, pattern, refs)
         io = StringIO(stdout)
@@ -394,8 +396,9 @@ class MetaUtils(object):
         return features
 
     @classmethod
-    def git_build_meta_index(cls, repo):
+    def git_build_meta_index(cls, repo_or_path):
         # type: (Repo) -> ...
+        repo = maybe_repo(repo_or_path)
         refs = [ref.name for ref in repo.refs]
         stdout = cls.git_grep_features(repo, cls.META_PATTERN, refs)
 
@@ -487,6 +490,12 @@ def new_uuid_120b():
     uuid = (1 << (60-1)) | time_60b
     uuid = (uuid << 60) | rand_60b
     return base32_crockford.encode(uuid)
+
+
+def maybe_repo(repo_or_path):
+    if isinstance(repo_or_path, Repo):
+        return repo_or_path
+    return Repo(repo_or_path)
 
 
 def print_error(e):
