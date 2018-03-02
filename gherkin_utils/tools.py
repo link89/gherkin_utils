@@ -373,21 +373,30 @@ class MetaUtils(object):
         return stdout
 
     @classmethod
-    def git_get_features_meta(cls, repo_or_path, refs=None, fuid=None, skip_error=False):
+    def git_get_features_meta(cls, repo_or_path, refs=None, fuid=None, with_children=False, skip_error=False):
         repo = maybe_repo(repo_or_path)
-        pattern = cls.new_feature_meta_pattern(fuid)
+        pattern = cls.new_feature_meta_pattern(fuid, with_children)
         stdout = cls.git_grep_features(repo, pattern, refs)
         io = StringIO(stdout)
         features = []
+        features_idx = {}  # key: (ref, file_name)
         for line in io:
             try:
-                _ref, _file_name, meta = line.split(':', 2)
+                ref, file_name, meta = line.split(':', 2)
                 if meta.startswith(cls.META_F_PREFIX):
                     fuid, fid, data = cls.split_feature_meta(meta)
                     summary = json.loads(data)
-                    summary['_ref'] = _ref
-                    summary['_file_name'] = _file_name
+                    summary['_ref'] = ref
+                    summary['_file_name'] = file_name
                     features.append(summary)
+                    features_idx[(ref, file_name)] = summary
+                elif meta.startswith(cls.META_S_PREFIX):
+                    fuid, suid, sid, data = cls.split_scenario_meta(meta)
+                    summary = json.loads(data)
+                    summary['_ref'] = ref
+                    summary['_file_name'] = file_name
+                    feature_summary = features_idx[(ref, file_name)]  # type: dict
+                    feature_summary.setdefault('children', []).append(summary)
             except Exception as e:
                 if not skip_error:
                     raise e
@@ -420,24 +429,31 @@ class MetaUtils(object):
         return fid_idx, sid_idx
 
     @staticmethod
-    def new_feature_meta_pattern(fuid=None):
-        pattern = '^# META F'
-        if fuid:
-            pattern = pattern + ' ' + fuid
-        return pattern
+    def new_feature_meta_pattern(fuid=None, with_children=False):
+        if fuid is not None:
+            if with_children:
+                return '^# META (F|S) ' + fuid
+            else:
+                return '^# META F ' + fuid
+        else:
+            if with_children:
+                return '^# META (F|S) '
+            else:
+                return '^# META F '
 
     @staticmethod
     def new_scenario_meta_pattern(fuid=None, suid=None, fuid_len=16):
-        pattern = '^# META S'
-        fuid_holder = '.{{{}}}'.format(fuid_len)  # e.g '.{16}'
-        cond = (fuid is None, suid is None)
-        if (False, True) == cond:
-            return pattern + ' ' + fuid
-        if (False, False) == cond:
-            return pattern + ' ' + fuid + ' ' + suid
-        if (True, False) == cond:
-            return pattern + ' ' + fuid_holder + ' ' + suid
-        return pattern
+        if fuid is not None:
+            if suid is not None:
+                return '^# META S ' + fuid + ' ' + suid
+            else:
+                return '^# META S ' + fuid
+        else:
+            if suid is not None:
+                fuid_holder = '.{{{}}}'.format(fuid_len)  # e.g '.{16}'
+                return '^# META S ' + fuid_holder + ' ' + suid
+            else:
+                return '^# META S '
 
     @staticmethod
     def new_feature_meta(fuid, fid, data=''):
