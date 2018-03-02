@@ -355,9 +355,14 @@ class MetaUtils(object):
     META_S_PREFIX = '# META S '
 
     @staticmethod
-    def git_grep_features(repo, pattern, refs):
-        # type: (Repo, basestring, list) -> list
-        cmd = [pattern] + refs + ['--', '*.feature']
+    def git_grep_features(repo, pattern, refs=None):
+        # type: (Repo, basestring, ...) -> ...
+        if isinstance(refs, list):
+            cmd = [pattern] + refs + ['--', '*.feature']
+        elif isinstance(refs, basestring):
+            cmd = [pattern, refs, '--', '*.feature']
+        else:
+            cmd = [pattern, '--', '*.feature']
         stdout = ''
         try:
             stdout = repo.git.grep(cmd)
@@ -367,8 +372,8 @@ class MetaUtils(object):
         return stdout
 
     @classmethod
-    def git_get_features_meta(cls, repo, refs, skip_error=False):
-        pattern = cls.new_feature_meta_pattern()
+    def git_get_features_meta(cls, repo, refs=None, fuid=None, skip_error=False):
+        pattern = cls.new_feature_meta_pattern(fuid)
         stdout = cls.git_grep_features(repo, pattern, refs)
         io = StringIO(stdout)
         features = []
