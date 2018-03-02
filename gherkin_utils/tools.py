@@ -479,9 +479,9 @@ class MetaUtils(object):
         fuid = meta_line[offset:offset+16]
         offset = 26  # len('# META S FFFFFFFFFFFFFFFF ') == 26
         suid = meta_line[offset:offset+16]
-        offset = 43  # len('# META F FFFFFFFFFFFFFFFF SSSSSSSSSSSSSSSS ') == 43
+        offset = 43  # len('# META S FFFFFFFFFFFFFFFF SSSSSSSSSSSSSSSS ') == 43
         sid = int(meta_line[offset:offset+16])
-        offset = 60  # len('# META F FFFFFFFFFFFFFFFF SSSSSSSSSSSSSSSS                1 ') == 60
+        offset = 60  # len('# META S FFFFFFFFFFFFFFFF SSSSSSSSSSSSSSSS                1 ') == 60
         data = meta_line[offset:]
         return fuid, suid, sid, data
 
