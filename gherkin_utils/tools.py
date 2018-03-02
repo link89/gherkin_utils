@@ -384,25 +384,54 @@ class MetaUtils(object):
             try:
                 ref, file_name, meta = line.split(':', 2)
                 if meta.startswith(cls.META_F_PREFIX):
-                    fuid, fid, data = cls.split_feature_meta(meta)
+                    _fuid, _fid, data = cls.split_feature_meta(meta)
                     summary = json.loads(data)
                     summary['_ref'] = ref
                     summary['_file_name'] = file_name
+                    summary['_fuid'] = _fuid
+                    summary['_fid'] = _fid
                     features.append(summary)
                     features_idx[(ref, file_name)] = summary
                 elif meta.startswith(cls.META_S_PREFIX):
-                    fuid, suid, sid, data = cls.split_scenario_meta(meta)
+                    _fuid, _suid, _sid, data = cls.split_scenario_meta(meta)
                     summary = json.loads(data)
                     summary['_ref'] = ref
                     summary['_file_name'] = file_name
+                    summary['_fuid'] = _fuid
+                    summary['_suid'] = _suid
+                    summary['_sid'] = _sid
                     feature_summary = features_idx[(ref, file_name)]  # type: dict
                     feature_summary.setdefault('children', []).append(summary)
             except Exception as e:
                 if not skip_error:
                     raise e
-                else:
-                    print_error(e)
+                print_error(e)
         return features
+
+    @classmethod
+    def git_get_scenarios_meta(cls, repo_or_path, refs=None, suid=None, fuid=None, skip_error=False):
+        repo = maybe_repo(repo_or_path)
+        pattern = cls.new_scenario_meta_pattern(suid, fuid)
+        stdout = cls.git_grep_features(repo, pattern, refs)
+        io = StringIO(stdout)
+        scenarios = []
+        for line in io:
+            try:
+                ref, file_name, meta = line.split(':', 2)
+                if meta.startswith(cls.META_S_PREFIX):
+                    _fuid, _suid, _sid, data = cls.split_scenario_meta(meta)
+                    summary = json.loads(data)
+                    summary['_ref'] = ref
+                    summary['_file_name'] = file_name
+                    summary['_fuid'] = _fuid
+                    summary['_suid'] = _suid
+                    summary['_sid'] = _sid
+                    scenarios.append(summary)
+            except Exception as e:
+                if not skip_error:
+                    raise e
+                print_error(e)
+        return scenarios
 
     @classmethod
     def git_build_meta_index(cls, repo_or_path):
