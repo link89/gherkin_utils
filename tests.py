@@ -8,10 +8,10 @@ class TestMetaUtils(TestCase):
     def test_new_scenario_meta_pattern(self):
         fuid = 'F' * 16
         suid = 'S' * 16
-        self.assertEqual(MetaUtils.new_scenario_meta_pattern(None, None), '^# META S')
-        self.assertEqual(MetaUtils.new_scenario_meta_pattern(fuid, None), '^# META S FFFFFFFFFFFFFFFF')
-        self.assertEqual(MetaUtils.new_scenario_meta_pattern(fuid, suid), '^# META S FFFFFFFFFFFFFFFF SSSSSSSSSSSSSSSS')
-        self.assertEqual(MetaUtils.new_scenario_meta_pattern(None, suid), '^# META S .{16} SSSSSSSSSSSSSSSS')
+        self.assertEqual(MetaUtils.new_scenario_meta_pattern(), '^# META S')
+        self.assertEqual(MetaUtils.new_scenario_meta_pattern(None, fuid), '^# META S FFFFFFFFFFFFFFFF')
+        self.assertEqual(MetaUtils.new_scenario_meta_pattern(suid, fuid), '^# META S FFFFFFFFFFFFFFFF SSSSSSSSSSSSSSSS')
+        self.assertEqual(MetaUtils.new_scenario_meta_pattern(suid), '^# META S .{16} SSSSSSSSSSSSSSSS')
 
     def test_meta_line(self):
         fuid = 'F' * 16

@@ -430,19 +430,20 @@ class MetaUtils(object):
 
     @staticmethod
     def new_feature_meta_pattern(fuid=None, with_children=False):
+        if not isinstance(fuid, basestring) and is_iterable(fuid):
+            fuid = '({})'.format('|'.join(fuid))
+        flag = '[F|S] ' if with_children else 'F '
+
         if fuid is not None:
-            if with_children:
-                return '^# META [FS] ' + fuid
-            else:
-                return '^# META F ' + fuid
+            return '^# META ' + flag + fuid
         else:
-            if with_children:
-                return '^# META [FS] '
-            else:
-                return '^# META F '
+            return '^# META ' + flag
 
     @staticmethod
-    def new_scenario_meta_pattern(fuid=None, suid=None, fuid_len=16):
+    def new_scenario_meta_pattern(suid=None, fuid=None):  # since suid is GUID, fuid could be omit
+        if not isinstance(suid, basestring) and is_iterable(suid):
+            suid = '({})'.format('|'.join(suid))
+
         if fuid is not None:
             if suid is not None:
                 return '^# META S ' + fuid + ' ' + suid
@@ -450,10 +451,9 @@ class MetaUtils(object):
                 return '^# META S ' + fuid
         else:
             if suid is not None:
-                fuid_holder = '.{{{}}}'.format(fuid_len)  # e.g '.{16}'
-                return '^# META S ' + fuid_holder + ' ' + suid
+                return '^# META S .{16} ' + suid
             else:
-                return '^# META S '
+                return '^# META S'
 
     @staticmethod
     def new_feature_meta(fuid, fid, data=''):
@@ -512,6 +512,15 @@ def maybe_repo(repo_or_path):
     if isinstance(repo_or_path, Repo):
         return repo_or_path
     return Repo(repo_or_path)
+
+
+def is_iterable(o):
+    try:
+        iter(o)
+    except TypeError:
+        return False
+    else:
+        return True
 
 
 def print_error(e):
