@@ -359,11 +359,11 @@ class MetaUtils(object):
         # type: (Repo, basestring, ...) -> ...
         repo = maybe_repo(repo_or_path)
         if isinstance(refs, list):
-            cmd = [pattern] + refs + ['--', '*.feature']
+            cmd = ['--extended-regexp', pattern] + refs + ['--', '*.feature']
         elif isinstance(refs, basestring):
-            cmd = [pattern, refs, '--', '*.feature']
+            cmd = ['--extended-regexp', pattern, refs, '--', '*.feature']
         else:
-            cmd = [pattern, repo.active_branch.name, '--', '*.feature']
+            cmd = ['--extended-regexp', pattern, repo.active_branch.name, '--', '*.feature']
         stdout = ''
         try:
             stdout = repo.git.grep(cmd)
