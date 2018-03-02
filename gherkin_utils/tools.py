@@ -45,7 +45,7 @@ class Task(object):
             self.clean()
 
 
-class BuildIndexTask(Task):
+class LabelingTask(Task):
     # defer init members declare here
     _repo = None
     _remote = None
