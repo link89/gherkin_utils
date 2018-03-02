@@ -77,7 +77,7 @@ class BuildIndexTask(Task):
         if self._fetch_remote:
             self._repo.git.fetch()
         self._remote = self._repo.remote()
-        self._fid_idx, self._sid_idx = MetaUtils.build_meta_index_from_git(self._repo)
+        self._fid_idx, self._sid_idx = MetaUtils.git_build_meta_index(self._repo)
 
     def process_branches(self):
         if self._rebase_to is not None:
@@ -354,17 +354,36 @@ class MetaUtils(object):
     META_F_PREFIX = '# META F '
     META_S_PREFIX = '# META S '
 
-    @classmethod
-    def build_meta_index_from_git(cls, repo):
-        # type: (Repo) -> ...
-        refs = [ref.name for ref in repo.refs]
-        cmd = [cls.META_PATTERN] + refs + ['--', '*.feature']
+    @staticmethod
+    def git_grep_features(repo, pattern, refs):
+        # type: (Repo, basestring, list) -> list
+        cmd = [pattern] + refs + ['--', '*.feature']
         stdout = ''
         try:
             stdout = repo.git.grep(cmd)
         except git.exc.GitCommandError as e:
             if e.status != 1:  # git grep will return status 1 when nothing is match
                 raise e
+        return stdout
+
+    @classmethod
+    def git_get_features_meta(cls, repo, ref):
+        pattern = cls.new_feature_meta_pattern()
+        stdout = cls.git_grep_features(repo, pattern, [ref])
+        io = StringIO(stdout)
+        features = []
+        for line in io:
+            _ref, _file_name, meta = line.split(':', 2)
+            if meta.startswith(cls.META_F_PREFIX):
+                fuid, fid, summary = cls.split_feature_meta(meta)
+                features.append(summary)
+        return features
+
+    @classmethod
+    def git_build_meta_index(cls, repo):
+        # type: (Repo) -> ...
+        refs = [ref.name for ref in repo.refs]
+        stdout = cls.git_grep_features(repo, cls.META_PATTERN, refs)
 
         fid_idx, sid_idx = {}, {}
         if not stdout:
