@@ -367,16 +367,22 @@ class MetaUtils(object):
         return stdout
 
     @classmethod
-    def git_get_features_meta(cls, repo, ref):
+    def git_get_features_meta(cls, repo, ref, skip_error=False):
         pattern = cls.new_feature_meta_pattern()
         stdout = cls.git_grep_features(repo, pattern, [ref])
         io = StringIO(stdout)
         features = []
         for line in io:
-            _ref, _file_name, meta = line.split(':', 2)
-            if meta.startswith(cls.META_F_PREFIX):
-                fuid, fid, summary = cls.split_feature_meta(meta)
-                features.append(summary)
+            try:
+                _ref, _file_name, meta = line.split(':', 2)
+                if meta.startswith(cls.META_F_PREFIX):
+                    fuid, fid, summary = cls.split_feature_meta(meta)
+                    features.append(json.loads(summary))
+            except Exception as e:
+                if not skip_error:
+                    raise e
+                else:
+                    print_error(e)
         return features
 
     @classmethod
