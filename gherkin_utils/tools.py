@@ -432,12 +432,12 @@ class MetaUtils(object):
     def new_feature_meta_pattern(fuid=None, with_children=False):
         if fuid is not None:
             if with_children:
-                return '^# META (F|S) ' + fuid
+                return '^# META [FS] ' + fuid
             else:
                 return '^# META F ' + fuid
         else:
             if with_children:
-                return '^# META (F|S) '
+                return '^# META [FS] '
             else:
                 return '^# META F '
 
