@@ -363,7 +363,7 @@ class MetaUtils(object):
         elif isinstance(refs, basestring):
             cmd = [pattern, refs, '--', '*.feature']
         else:
-            cmd = [pattern, '--', '*.feature']
+            cmd = [pattern, repo.active_branch.name, '--', '*.feature']
         stdout = ''
         try:
             stdout = repo.git.grep(cmd)
