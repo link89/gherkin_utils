@@ -341,12 +341,20 @@ class GherkinUtils(object):
         return parse_gherkin(path)
 
     @classmethod
-    def write_gherkin_with_meta(cls, gherkin_ast, path):
-        with codecs.open(path, 'w', encoding='utf8') as fp:
-            meta_header = cls.new_meta_header(gherkin_ast)
-            fp.writelines(meta_header)
-            fp.writelines('\n\n')
-            write_gherkin(gherkin_ast, fp)
+    def write_gherkin_with_meta(cls, gherkin_ast, fp_or_path):
+        if isinstance(fp_or_path, basestring):
+            with codecs.open(fp_or_path, 'w', encoding='utf8') as fp:
+                cls._write_gherkin_with_meta(gherkin_ast, fp)
+        else:
+            cls._write_gherkin_with_meta(gherkin_ast, fp_or_path)
+
+    @classmethod
+    def _write_gherkin_with_meta(cls, gherkin_ast, fp):
+        meta_header = cls.new_meta_header(gherkin_ast)
+        fp.writelines(meta_header)
+        fp.writelines('\n\n')
+        write_gherkin(gherkin_ast, fp)
+
 
 
 class MetaUtils(object):
