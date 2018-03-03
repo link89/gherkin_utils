@@ -65,7 +65,7 @@ class LabelingTask(Task):
         self._processed_branches = set()
         self._resolved_fuids = {}
         self._resolved_suids = {}
-        self._fetch_remote=fetch_remote
+        self._fetch_remote = fetch_remote
         self._push_to_remote = push_to_remote
         self._rebase_to = rebase_to
 
@@ -155,7 +155,7 @@ class LabelingTask(Task):
             if suid is not None and sid is not None:
                 suid_set = self._sid_idx[(fuid, sid)]
                 if len(suid_set) > 1 and min(suid_set) != (fuid, suid):
-                    sid = self._resolved_suids.get((fuid, suid),self.new_sid(fuid))
+                    sid = self._resolved_suids.get((fuid, suid), self.new_sid(fuid))
                     self._sid_idx.setdefault((fuid, sid), set()).add((fuid, suid))
                     self._resolved_suids[(fuid, suid)] = sid
             else:  # create new meta
@@ -368,7 +368,7 @@ class MetaUtils(object):
                         summary['_fid'] = _fid
                         feature = summary
                     elif line.startswith(cls.META_S_PREFIX):
-                        _fuid, _suid, _sid, data = cls.split_scenario_meta(meta)
+                        _fuid, _suid, _sid, data = cls.split_scenario_meta(line)
                         summary = json.loads(data)
                         summary['_file_path'] = file_path
                         summary['_fuid'] = _fuid
