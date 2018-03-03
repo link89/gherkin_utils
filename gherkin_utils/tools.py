@@ -354,6 +354,36 @@ class MetaUtils(object):
     META_F_PREFIX = '# META F '
     META_S_PREFIX = '# META S '
 
+    @classmethod
+    def get_feature_meta_by_path(cls, file_path, index_children=False, skip_error=False):
+        feature = None
+        with codecs.open(file_path, mode='r', encoding='utf-8') as io:
+            for line in io:
+                try:
+                    if line.startswith(cls.META_F_PREFIX):
+                        _fuid, _fid, data = cls.split_feature_meta(line)
+                        summary = json.loads(data)
+                        summary['_file_path'] = file_path
+                        summary['_fuid'] = _fuid
+                        summary['_fid'] = _fid
+                        feature = summary
+                    elif line.startswith(cls.META_S_PREFIX):
+                        _fuid, _suid, _sid, data = cls.split_scenario_meta(meta)
+                        summary = json.loads(data)
+                        summary['_file_path'] = file_path
+                        summary['_fuid'] = _fuid
+                        summary['_suid'] = _suid
+                        summary['_sid'] = _sid
+                        if index_children:
+                            feature.setdefault('children', {})[_suid] = summary
+                        else:
+                            feature.setdefault('children', []).append(summary)
+                except Exception as e:
+                    if not skip_error:
+                        raise e
+                    print_error(e)
+        return feature
+
     @staticmethod
     def git_grep_features(repo_or_path, pattern, refs=None):
         # type: (Repo, basestring, ...) -> ...
