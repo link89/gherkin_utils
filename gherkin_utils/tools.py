@@ -393,15 +393,28 @@ class MetaUtils(object):
         return feature
 
     @staticmethod
-    def git_grep_features(repo_or_path, pattern, refs=None):
+    def git_get_blob_index_by_filename(repo_or_path, ref, glob_pattern='*.feature'):
+        repo = maybe_repo(repo_or_path)
+        cmd = ('--full-tree', ref, '--', glob_pattern)
+        stdout = repo.git.ls_tree(cmd)
+        io = StringIO(stdout)
+        ret = {}
+        for line in io:
+            mode, type_, object_id, file_name = line.split('\t')
+            if 'blob' == type_:
+                ret[file_name] = object_id
+        return ret
+
+    @staticmethod
+    def git_grep_features(repo_or_path, pattern, refs=None, glob_pattern='*.feature'):
         # type: (Repo, basestring, ...) -> ...
         repo = maybe_repo(repo_or_path)
         if isinstance(refs, list):
-            cmd = ['--extended-regexp', pattern] + refs + ['--', '*.feature']
+            cmd = ['--extended-regexp', pattern] + refs + ['--', glob_pattern]
         elif isinstance(refs, basestring):
-            cmd = ['--extended-regexp', pattern, refs, '--', '*.feature']
+            cmd = ['--extended-regexp', pattern, refs, '--', glob_pattern]
         else:
-            cmd = ['--extended-regexp', pattern, repo.active_branch.name, '--', '*.feature']
+            cmd = ['--extended-regexp', pattern, repo.active_branch.name, '--', glob_pattern]
         stdout = ''
         try:
             stdout = repo.git.grep(cmd)
