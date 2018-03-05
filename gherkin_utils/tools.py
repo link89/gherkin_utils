@@ -395,7 +395,7 @@ class MetaUtils(object):
     @staticmethod
     def git_get_blob_index_by_filename(repo_or_path, ref, glob_pattern='*.feature'):
         repo = maybe_repo(repo_or_path)
-        cmd = ('--full-tree', ref, '--', glob_pattern)
+        cmd = ('--full-tree', ref, glob_pattern)
         stdout = repo.git.ls_tree(cmd)
         io = StringIO(stdout)
         ret = {}
