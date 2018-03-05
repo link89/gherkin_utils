@@ -393,15 +393,16 @@ class MetaUtils(object):
         return feature
 
     @staticmethod
-    def git_get_blob_index_by_filename(repo_or_path, ref, glob_pattern='*.feature'):
+    def git_get_blob_index_by_filename(repo_or_path, ref):
         repo = maybe_repo(repo_or_path)
-        cmd = ('--full-tree', ref, glob_pattern)
+        cmd = ('--full-tree', ref)
         stdout = repo.git.ls_tree(cmd)
         io = StringIO(stdout)
         ret = {}
         for line in io:
-            mode, type_, object_id, file_name = line.split('\t')
-            if 'blob' == type_:
+            others, file_name = line.rstrip('\n').split('\t')
+            mode, type_, object_id = others.split(' ')
+            if 'blob' == type_ and file_name.endswith('.feature'):
                 ret[file_name] = object_id
         return ret
 
