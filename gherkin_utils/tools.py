@@ -308,23 +308,21 @@ class GherkinUtils(object):
         return summary
 
     @classmethod
-    def new_meta_lines(cls, gherkin_ast):
-        lines = []
+    def add_meta_comments(cls, gherkin_ast):
         if 'feature' not in gherkin_ast:
-            return lines
+            return
         feature = gherkin_ast['feature']
         fuid, fid = cls.get_feature_meta(feature)
         if fuid is not None and fid is not None:
             data = cls.new_feature_summary(feature, fuid, fid, to_json=True)
-            lines.append(MetaUtils.new_feature_meta(fuid, fid, data))
+            feature['comment'] = MetaUtils.new_feature_meta(fuid, fid, data)
         for child in feature['children']:
             if 'Background' == child['type']:
                 continue
             suid, sid = cls.get_scenario_meta(child)
             if suid is not None and sid is not None:
                 data = cls.new_scenario_summary(child, suid, sid, to_json=True)
-                lines.append(MetaUtils.new_scenario_meta(fuid, suid, sid, data))
-        return lines
+                child['comment'] = MetaUtils.new_scenario_meta(fuid, suid, sid, data)
 
     @classmethod
     def new_meta_header(cls, gherkin_ast):
@@ -333,8 +331,7 @@ class GherkinUtils(object):
 # ARE CREATED AND USED BY HEARTBEATS SYSTEM
 # PLEASE DO NOT ADD OR MODIFY THOSE COMMENTS AND TAGS BY HAND
 '''
-        meta_lines = cls.new_meta_lines(gherkin_ast)
-        return cautions + '\n'.join(meta_lines)
+        return cautions
 
     @staticmethod
     def parse_gherkin(path):
@@ -353,8 +350,8 @@ class GherkinUtils(object):
         meta_header = cls.new_meta_header(gherkin_ast)
         fp.writelines(meta_header)
         fp.writelines('\n\n')
+        cls.add_meta_comments(gherkin_ast)
         write_gherkin(gherkin_ast, fp)
-
 
 
 class MetaUtils(object):
@@ -528,9 +525,9 @@ class MetaUtils(object):
         flag = '[F|S] ' if with_children else 'F '
 
         if fuid is not None:
-            return '^# META ' + flag + fuid
+            return '^ *?# META ' + flag + fuid
         else:
-            return '^# META ' + flag
+            return '^ *?# META ' + flag
 
     @staticmethod
     def new_scenario_meta_pattern(suid=None, fuid=None):  # since suid is GUID, fuid could be omit
@@ -539,14 +536,14 @@ class MetaUtils(object):
 
         if fuid is not None:
             if suid is not None:
-                return '^# META S ' + fuid + ' ' + suid
+                return '^ *?# META S ' + fuid + ' ' + suid
             else:
-                return '^# META S ' + fuid
+                return '^ *?# META S ' + fuid
         else:
             if suid is not None:
-                return '^# META S .{16} ' + suid
+                return '^ *?# META S .{16} ' + suid
             else:
-                return '^# META S'
+                return '^ *?# META S'
 
     @staticmethod
     def new_feature_meta(fuid, fid, data=''):
@@ -558,6 +555,7 @@ class MetaUtils(object):
 
     @staticmethod
     def split_feature_meta(meta_line):
+        meta_line = meta_line.lstrip(' ')
         offset = 9  # len('# META F ') == 9
         fuid = meta_line[offset:offset+16]
         offset = 26  # len('# META F FFFFFFFFFFFFFFFF ') == 26
@@ -568,6 +566,7 @@ class MetaUtils(object):
 
     @staticmethod
     def split_scenario_meta(meta_line):
+        meta_line = meta_line.lstrip(' ')
         offset = 9  # len('# META S ') == 9
         fuid = meta_line[offset:offset+16]
         offset = 26  # len('# META S FFFFFFFFFFFFFFFF ') == 26
