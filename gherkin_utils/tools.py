@@ -490,12 +490,28 @@ class MetaUtils(object):
         return scenarios
 
     @classmethod
-    def git_get_file_by_fuid(cls, repo_or_path, fuid, ref=None):
+    def git_get_file_by_fuid(cls, repo_or_path, fuid, ref=None, rel_path=False):
         repo = maybe_repo(repo_or_path)
         features_meta = cls.git_get_features_meta(repo, ref, fuid)
-        if len(features_meta) != 1:
-            raise ValueError()
-        return os.path.join(repo.working_dir, features_meta[0]['_file_name'])
+        if len(features_meta) > 1:
+            raise ValueError("return more than one feature: {}, {}, {}".format(repo.working_dir, ref, fuid))
+        elif len(features_meta) < 1:
+            raise ValueError("no feature is found: {}, {}, {}".format(repo.working_dir, ref, fuid))
+        path = features_meta[0]['_file_name']
+        if rel_path:
+            return path
+        else:
+            return os.path.join(repo.working_dir, path)
+
+    @classmethod
+    def git_get_files_by_fuids(cls, repo_or_path, fuids, ref=None, rel_path=False):
+        repo = maybe_repo(repo_or_path)
+        features_meta = cls.git_get_features_meta(repo, ref, fuids)
+        paths = [feature['_file_name'] for feature in features_meta]
+        if rel_path:
+            return paths
+        else:
+            return [os.path.join(repo.working_dir, path) for path in paths]
 
     @classmethod
     def git_build_meta_index(cls, repo_or_path):
@@ -525,7 +541,13 @@ class MetaUtils(object):
     @staticmethod
     def new_feature_meta_pattern(fuid=None, with_children=False):
         if not isinstance(fuid, basestring) and is_iterable(fuid):
-            fuid = '({})'.format('|'.join(fuid))
+            branches_expr = '|'.join(fuid)
+            if not branches_expr:
+                # if fuid yields nothing (e.g. empty list),
+                # it is more reasonable to return nothing than return everything
+                # so here we return an regex which won't match anything to do this trick
+                return '^$'
+            fuid = '({})'.format(branches_expr)
         flag = '[F|S] ' if with_children else 'F '
 
         if fuid is not None:
@@ -536,7 +558,13 @@ class MetaUtils(object):
     @staticmethod
     def new_scenario_meta_pattern(suid=None, fuid=None):  # since suid is GUID, fuid could be omit
         if not isinstance(suid, basestring) and is_iterable(suid):
-            suid = '({})'.format('|'.join(suid))
+            branches_expr = '|'.join(suid)
+            if not branches_expr:
+                # if suid yields nothing (e.g. empty list),
+                # it is more reasonable to return nothing than return everything
+                # so here we return an regex which won't match anything to do this trick
+                return '^$'
+            suid = '({})'.format(branches_expr)
 
         if fuid is not None:
             if suid is not None:
