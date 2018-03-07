@@ -359,6 +359,20 @@ class MetaUtils(object):
     META_F_PREFIX = '# META F '
     META_S_PREFIX = '# META S '
 
+    @staticmethod
+    def git_get_blob_index_by_filename(repo_or_path, ref):
+        repo = maybe_repo(repo_or_path)
+        cmd = ('--full-tree', ref)
+        stdout = repo.git.ls_tree(cmd)
+        io = StringIO(stdout)
+        ret = {}
+        for line in io:
+            others, file_name = line.rstrip('\n').split('\t')
+            mode, type_, object_id = others.split(' ')
+            if 'blob' == type_ and file_name.endswith('.feature'):
+                ret[file_name] = object_id
+        return ret
+
     @classmethod
     def get_feature_meta_by_path(cls, file_path, index_children=False, skip_error=False):
         feature = None
