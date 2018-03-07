@@ -355,7 +355,7 @@ class GherkinUtils(object):
 
 
 class MetaUtils(object):
-    META_PATTERN = '^# META '
+    META_PATTERN = '^ *?# META '
     META_F_PREFIX = '# META F '
     META_S_PREFIX = '# META S '
 
@@ -378,6 +378,7 @@ class MetaUtils(object):
         feature = None
         with codecs.open(file_path, mode='r', encoding='utf-8') as io:
             for line in io:
+                line = line.lstrip(' ')
                 try:
                     if line.startswith(cls.META_F_PREFIX):
                         _fuid, _fid, data = cls.split_feature_meta(line)
@@ -447,6 +448,7 @@ class MetaUtils(object):
         for line in io:
             try:
                 ref, file_name, meta = line.split(':', 2)
+                meta = meta.lstrip(' ')
                 if meta.startswith(cls.META_F_PREFIX):
                     _fuid, _fid, data = cls.split_feature_meta(meta)
                     summary = json.loads(data)
@@ -485,6 +487,7 @@ class MetaUtils(object):
         for line in io:
             try:
                 ref, file_name, meta = line.split(':', 2)
+                meta = meta.lstrip(' ')
                 if meta.startswith(cls.META_S_PREFIX):
                     _fuid, _suid, _sid, data = cls.split_scenario_meta(meta)
                     summary = json.loads(data)
@@ -522,6 +525,7 @@ class MetaUtils(object):
         io = StringIO(stdout)
         for line in io:
             _ref, _file_name, meta = line.split(':', 2)  # type: str
+            meta = meta.lstrip(' ')
             if meta.startswith(cls.META_F_PREFIX):
                 fuid, fid, _data = cls.split_feature_meta(meta)
                 fid_idx.setdefault(fid, set()).add(fuid)
