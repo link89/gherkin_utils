@@ -5,8 +5,12 @@ import os
 import time
 import traceback
 import codecs
-import json
 from cStringIO import StringIO
+try:
+    from ujson import loads as json_loads
+except ImportError:
+    from json import loads as json_loads
+from json import dumps as json_dumps
 
 import base32_crockford
 import git.exc
@@ -290,7 +294,7 @@ class GherkinUtils(object):
             'fid': fid,
         }
         if to_json:
-            return json.dumps(summary, separators=(',', ':'))
+            return json_dumps(summary, separators=(',', ':'))
         return summary
 
     @classmethod
@@ -304,7 +308,7 @@ class GherkinUtils(object):
             'type': scenario_ast['type'],
         }
         if to_json:
-            return json.dumps(summary, separators=(',', ':'))
+            return json_dumps(summary, separators=(',', ':'))
         return summary
 
     @classmethod
@@ -368,14 +372,14 @@ class MetaUtils(object):
                 try:
                     if line.startswith(cls.META_F_PREFIX):
                         _fuid, _fid, data = cls.split_feature_meta(line)
-                        summary = json.loads(data)
+                        summary = json_loads(data)
                         summary['_file_path'] = file_path
                         summary['_fuid'] = _fuid
                         summary['_fid'] = _fid
                         feature = summary
                     elif line.startswith(cls.META_S_PREFIX):
                         _fuid, _suid, _sid, data = cls.split_scenario_meta(line)
-                        summary = json.loads(data)
+                        summary = json_loads(data)
                         summary['_file_path'] = file_path
                         summary['_fuid'] = _fuid
                         summary['_suid'] = _suid
@@ -437,7 +441,7 @@ class MetaUtils(object):
                 meta = meta.lstrip(' ')
                 if meta.startswith(cls.META_F_PREFIX):
                     _fuid, _fid, data = cls.split_feature_meta(meta)
-                    summary = json.loads(data)
+                    summary = json_loads(data)
                     summary['_ref'] = ref
                     summary['_file_name'] = file_name
                     summary['_fuid'] = _fuid
@@ -446,7 +450,7 @@ class MetaUtils(object):
                     features_idx[(ref, file_name)] = summary
                 elif meta.startswith(cls.META_S_PREFIX):
                     _fuid, _suid, _sid, data = cls.split_scenario_meta(meta)
-                    summary = json.loads(data)
+                    summary = json_loads(data)
                     summary['_ref'] = ref
                     summary['_file_name'] = file_name
                     summary['_fuid'] = _fuid
@@ -476,7 +480,7 @@ class MetaUtils(object):
                 meta = meta.lstrip(' ')
                 if meta.startswith(cls.META_S_PREFIX):
                     _fuid, _suid, _sid, data = cls.split_scenario_meta(meta)
-                    summary = json.loads(data)
+                    summary = json_loads(data)
                     summary['_ref'] = ref
                     summary['_file_name'] = file_name
                     summary['_fuid'] = _fuid
