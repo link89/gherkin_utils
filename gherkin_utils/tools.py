@@ -424,6 +424,19 @@ class MetaUtils(object):
         return ret
 
     @staticmethod
+    def git_get_blob_by_file_path(repo_or_path, ref, file_path):
+        repo = maybe_repo(repo_or_path)
+        cmd = ('--full-tree', ref, file_path)
+        stdout = repo.git.ls_tree(cmd)
+        io = StringIO(stdout)
+        for line in io:
+            others, file_name = line.rstrip('\n').split('\t')
+            mode, type_, object_id = others.split(' ')
+            if 'blob' == type_:
+                return object_id
+        return None
+
+    @staticmethod
     def git_grep_features(repo_or_path, pattern, refs=None, glob_pattern='*.feature'):
         # type: (Repo, basestring, ...) -> ...
         repo = maybe_repo(repo_or_path)
