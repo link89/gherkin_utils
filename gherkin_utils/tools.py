@@ -216,6 +216,21 @@ class GherkinUtils(object):
         }
 
     @classmethod
+    def get_scenario_ast_by_suid(cls, feature_ast, suid, with_background=True):
+        background = scenario = None
+        for child in feature_ast['children']:
+            if 'Background' == child['type'] and with_background:
+                background = child
+            else:
+                _suid, _ = cls.get_scenario_meta(child)
+                if suid == _suid:
+                    scenario = child
+        if with_background:
+            return background, scenario
+        else:
+            return scenario
+
+    @classmethod
     def set_feature_meta(cls, feature_ast, fuid, fid):
         fuid_tag = cls.new_fuid_tag(fuid)
         fid_tag = cls.new_fid_tag(fid)
@@ -468,7 +483,7 @@ class MetaUtils(object):
         return features
 
     @classmethod
-    def git_get_scenarios_meta(cls, repo_or_path, refs=None, suid=None, fuid=None, skip_error=False):
+    def git_get_scenarios_meta(cls, repo_or_path, refs=None, suid=None, fuid=None, skip_error=False, filter_=None):
         repo = maybe_repo(repo_or_path)
         pattern = cls.new_scenario_meta_pattern(suid, fuid)
         stdout = cls.git_grep_features(repo, pattern, refs)
@@ -486,7 +501,8 @@ class MetaUtils(object):
                     summary['_fuid'] = _fuid
                     summary['_suid'] = _suid
                     summary['_sid'] = _sid
-                    scenarios.append(summary)
+                    if filter_ is None or filter_(summary):
+                        scenarios.append(summary)
             except Exception as e:
                 if not skip_error:
                     raise e
