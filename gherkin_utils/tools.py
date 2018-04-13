@@ -177,6 +177,11 @@ class LabelingTask(Task):
 
 
 class GherkinUtils(object):
+
+    @staticmethod
+    def default_tag_key(tag):
+        return tag['name']
+
     @classmethod
     def new_fid_tag(cls, fid):
         return cls.new_tag("@FID.{}".format(fid))
@@ -193,21 +198,49 @@ class GherkinUtils(object):
     def new_suid_tag(cls, suid):
         return cls.new_tag("@SUID.{}".format(suid))
 
-    @staticmethod
-    def is_fid_tag(tag):
-        return tag['name'].startswith('@FID.')
+    @classmethod
+    def is_fid_tag(cls, tag, key=None):
+        key = key or cls.default_tag_key
+        return key(tag).startswith('@FID.')
 
-    @staticmethod
-    def is_sid_tag(tag):
-        return tag['name'].startswith('@SID.')
+    @classmethod
+    def is_sid_tag(cls, tag, key=None):
+        key = key or cls.default_tag_key
+        return key(tag).startswith('@SID.')
 
-    @staticmethod
-    def is_fuid_tag(tag):
-        return tag['name'].startswith('@FUID.')
+    @classmethod
+    def is_fuid_tag(cls, tag, key=None):
+        key = key or cls.default_tag_key
+        return key(tag).startswith('@FUID.')
 
-    @staticmethod
-    def is_suid_tag(tag):
-        return tag['name'].startswith('@SUID.')
+    @classmethod
+    def is_suid_tag(cls, tag, key=None):
+        key = key or cls.default_tag_key
+        return key(tag).startswith('@SUID.')
+
+    @classmethod
+    def get_fid_from_tag(cls, tag, key=None):
+        key = key or cls.default_tag_key
+        _, fid = key(tag).split('.', 1)
+        return int(fid)
+
+    @classmethod
+    def get_sid_from_tag(cls, tag, key=None):
+        key = key or cls.default_tag_key
+        _, _fid, sid = key(tag).split('.', 2)
+        return int(sid)
+
+    @classmethod
+    def get_fuid_from_tag(cls, tag, key=None):
+        key = key or cls.default_tag_key
+        _, fuid = key(tag).split('.', 1)
+        return fuid
+
+    @classmethod
+    def get_suid_from_tag(cls, tag, key=None):
+        key = key or cls.default_tag_key
+        _, suid = key(tag).split('.', 1)
+        return suid
 
     @staticmethod
     def new_tag(tag_name):
@@ -275,12 +308,11 @@ class GherkinUtils(object):
             if cls.is_fuid_tag(tag):
                 if fuid:
                     raise ValueError('duplicated FUID tag is found: {}'.format(tags))
-                _, fuid = tag['name'].split('.', 1)
+                fuid = cls.get_fuid_from_tag(tag)
             elif cls.is_fid_tag(tag):
                 if fid:
                     raise ValueError('duplicated FID tag is found: {}'.format(tags))
-                _, fid = tag['name'].split('.', 1)
-                fid = int(fid)
+                fid = cls.get_fid_from_tag(tag)
         return fuid, fid
 
     @classmethod
@@ -291,12 +323,11 @@ class GherkinUtils(object):
             if cls.is_suid_tag(tag):
                 if suid:
                     raise ValueError('duplicated SUID tag is found: {}'.format(tags))
-                _, suid = tag['name'].split('.', 1)
+                suid = cls.get_suid_from_tag(tag)
             elif cls.is_sid_tag(tag):
                 if sid:
                     raise ValueError('duplicated SID tag is found: {}'.format(tags))
-                _, _fid, sid = tag['name'].split('.', 2)
-                sid = int(sid)
+                sid = cls.get_sid_from_tag(tag)
         return suid, sid
 
     @classmethod
